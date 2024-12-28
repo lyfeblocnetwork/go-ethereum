@@ -29,9 +29,12 @@ import (
 // the manager will buffer in its channel.
 const managerSubBufferSize = 50
 
-// Config is a legacy struct which is not used
+// Config contains the settings of the global account manager.
+//
+// TODO(rjl493456442, karalabe, holiman): Get rid of this when account management
+// is removed in favor of Clef.
 type Config struct {
-	InsecureUnlockAllowed bool // Unused legacy-parameter
+	InsecureUnlockAllowed bool // Whether account unlocking in insecure environment is allowed
 }
 
 // newBackendEvent lets the manager know it should
@@ -44,6 +47,7 @@ type newBackendEvent struct {
 // Manager is an overarching account manager that can communicate with various
 // backends for signing transactions.
 type Manager struct {
+	config      *Config                    // Global account manager configurations
 	backends    map[reflect.Type][]Backend // Index of backends currently registered
 	updaters    []event.Subscription       // Wallet update subscriptions for all backends
 	updates     chan WalletEvent           // Subscription sink for backend wallet changes
@@ -74,6 +78,7 @@ func NewManager(config *Config, backends ...Backend) *Manager {
 	}
 	// Assemble the account manager and return
 	am := &Manager{
+		config:      config,
 		backends:    make(map[reflect.Type][]Backend),
 		updaters:    subs,
 		updates:     updates,
@@ -93,12 +98,14 @@ func NewManager(config *Config, backends ...Backend) *Manager {
 
 // Close terminates the account manager's internal notification processes.
 func (am *Manager) Close() error {
-	for _, w := range am.wallets {
-		w.Close()
-	}
 	errc := make(chan error)
 	am.quit <- errc
 	return <-errc
+}
+
+// Config returns the configuration of account manager.
+func (am *Manager) Config() *Config {
+	return am.config
 }
 
 // AddBackend starts the tracking of an additional backend for wallet updates.
@@ -250,7 +257,7 @@ func merge(slice []Wallet, wallets ...Wallet) []Wallet {
 	return slice
 }
 
-// drop is the counterpart of merge, which looks up wallets from within the sorted
+// drop is the couterpart of merge, which looks up wallets from within the sorted
 // cache and removes the ones specified.
 func drop(slice []Wallet, wallets ...Wallet) []Wallet {
 	for _, wallet := range wallets {

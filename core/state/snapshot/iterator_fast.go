@@ -19,13 +19,12 @@ package snapshot
 import (
 	"bytes"
 	"fmt"
-	"slices"
 	"sort"
 
 	"github.com/ethereum/go-ethereum/common"
 )
 
-// weightedIterator is an iterator with an assigned weight. It is used to prioritise
+// weightedIterator is a iterator with an assigned weight. It is used to prioritise
 // which account or storage slot is the correct one if multiple iterators find the
 // same one (modified in multiple consecutive blocks).
 type weightedIterator struct {
@@ -33,25 +32,32 @@ type weightedIterator struct {
 	priority int
 }
 
-func (it *weightedIterator) Cmp(other *weightedIterator) int {
+// weightedIterators is a set of iterators implementing the sort.Interface.
+type weightedIterators []*weightedIterator
+
+// Len implements sort.Interface, returning the number of active iterators.
+func (its weightedIterators) Len() int { return len(its) }
+
+// Less implements sort.Interface, returning which of two iterators in the stack
+// is before the other.
+func (its weightedIterators) Less(i, j int) bool {
 	// Order the iterators primarily by the account hashes
-	hashI := it.it.Hash()
-	hashJ := other.it.Hash()
+	hashI := its[i].it.Hash()
+	hashJ := its[j].it.Hash()
 
 	switch bytes.Compare(hashI[:], hashJ[:]) {
 	case -1:
-		return -1
+		return true
 	case 1:
-		return 1
+		return false
 	}
 	// Same account/storage-slot in multiple layers, split by priority
-	if it.priority < other.priority {
-		return -1
-	}
-	if it.priority > other.priority {
-		return 1
-	}
-	return 0
+	return its[i].priority < its[j].priority
+}
+
+// Swap implements sort.Interface, swapping two entries in the iterator stack.
+func (its weightedIterators) Swap(i, j int) {
+	its[i], its[j] = its[j], its[i]
 }
 
 // fastIterator is a more optimized multi-layer iterator which maintains a
@@ -63,7 +69,7 @@ type fastIterator struct {
 	curAccount []byte
 	curSlot    []byte
 
-	iterators []*weightedIterator
+	iterators weightedIterators
 	initiated bool
 	account   bool
 	fail      error
@@ -90,10 +96,18 @@ func newFastIterator(tree *Tree, root common.Hash, account common.Hash, seek com
 				priority: depth,
 			})
 		} else {
+			// If the whole storage is destructed in this layer, don't
+			// bother deeper layer anymore. But we should still keep
+			// the iterator for this layer, since the iterator can contain
+			// some valid slots which belongs to the re-created account.
+			it, destructed := current.StorageIterator(account, seek)
 			fi.iterators = append(fi.iterators, &weightedIterator{
-				it:       current.StorageIterator(account, seek),
+				it:       it,
 				priority: depth,
 			})
+			if destructed {
+				break
+			}
 		}
 		current = current.Parent()
 	}
@@ -105,7 +119,7 @@ func newFastIterator(tree *Tree, root common.Hash, account common.Hash, seek com
 // which it prepares the stack for step-by-step iteration.
 func (fi *fastIterator) init() {
 	// Track which account hashes are iterators positioned on
-	var positioned = make(map[common.Hash]int)
+	positioned := make(map[common.Hash]int)
 
 	// Position all iterators and track how many remain live
 	for i := 0; i < len(fi.iterators); i++ {
@@ -153,7 +167,7 @@ func (fi *fastIterator) init() {
 		}
 	}
 	// Re-sort the entire list
-	slices.SortFunc(fi.iterators, func(a, b *weightedIterator) int { return a.Cmp(b) })
+	sort.Sort(fi.iterators)
 	fi.initiated = false
 }
 
@@ -262,7 +276,7 @@ func (fi *fastIterator) next(idx int) bool {
 			return false
 		}
 		// The elem we're placing it next to has the same value,
-		// so whichever winds up on n+1 will need further iteration
+		// so whichever winds up on n+1 will need further iteraton
 		clash = n + 1
 
 		return cur.priority < fi.iterators[n+1].priority

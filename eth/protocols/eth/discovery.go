@@ -39,7 +39,7 @@ func (e enrEntry) ENRKey() string {
 // StartENRUpdater starts the `eth` ENR updater loop, which listens for chain
 // head events and updates the requested node record whenever a fork is passed.
 func StartENRUpdater(chain *core.BlockChain, ln *enode.LocalNode) {
-	var newHead = make(chan core.ChainHeadEvent, 10)
+	newHead := make(chan core.ChainHeadEvent, 10)
 	sub := chain.SubscribeChainHeadEvent(newHead)
 
 	go func() {
@@ -59,22 +59,7 @@ func StartENRUpdater(chain *core.BlockChain, ln *enode.LocalNode) {
 
 // currentENREntry constructs an `eth` ENR entry based on the current state of the chain.
 func currentENREntry(chain *core.BlockChain) *enrEntry {
-	head := chain.CurrentHeader()
 	return &enrEntry{
-		ForkID: forkid.NewID(chain.Config(), chain.Genesis(), head.Number.Uint64(), head.Time),
-	}
-}
-
-// NewNodeFilter returns a filtering function that returns whether the provided
-// enode advertises a forkid compatible with the current chain.
-func NewNodeFilter(chain *core.BlockChain) func(*enode.Node) bool {
-	filter := forkid.NewFilter(chain)
-	return func(n *enode.Node) bool {
-		var entry enrEntry
-		if err := n.Load(entry); err != nil {
-			return false
-		}
-		err := filter(entry.ForkID)
-		return err == nil
+		ForkID: forkid.NewID(chain.Config(), chain.Genesis().Hash(), chain.CurrentHeader().Number.Uint64()),
 	}
 }

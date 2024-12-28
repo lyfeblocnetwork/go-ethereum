@@ -20,10 +20,10 @@ import (
 	"bytes"
 	"encoding/binary"
 	"errors"
-	"math"
 	"time"
 
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/common/math"
 	"github.com/ethereum/go-ethereum/core/rawdb"
 	"github.com/ethereum/go-ethereum/ethdb"
 	"github.com/ethereum/go-ethereum/ethdb/memorydb"
@@ -46,7 +46,7 @@ type generatorStats struct {
 	storage  common.StorageSize // Total account and storage slot size(generation or recovery)
 }
 
-// Log creates a contextual log with the given message and the context pulled
+// Log creates an contextual log with the given message and the context pulled
 // from the internally maintained statistics.
 func (gs *generatorStats) Log(msg string, root common.Hash, marker []byte) {
 	var ctx []interface{}
@@ -126,7 +126,7 @@ func (ctx *generatorContext) openIterator(kind string, start []byte) {
 func (ctx *generatorContext) reopenIterator(kind string) {
 	// Shift iterator one more step, so that we can reopen
 	// the iterator at the right position.
-	var iter = ctx.account
+	iter := ctx.account
 	if kind == snapStorage {
 		iter = ctx.storage
 	}

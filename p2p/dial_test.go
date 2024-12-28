@@ -22,7 +22,6 @@ import (
 	"fmt"
 	"math/rand"
 	"net"
-	"net/netip"
 	"reflect"
 	"sync"
 	"testing"
@@ -275,7 +274,9 @@ func TestDialSchedRemoveStatic(t *testing.T) {
 			},
 		},
 		// Since all static nodes are removed, they should not be dialed again.
-		{}, {}, {},
+		{},
+		{},
+		{},
 	})
 }
 
@@ -390,34 +391,6 @@ func TestDialSchedResolve(t *testing.T) {
 			},
 			wantNewDials: []*enode.Node{
 				resolved2,
-			},
-		},
-	})
-}
-
-func TestDialSchedDNSHostname(t *testing.T) {
-	t.Parallel()
-
-	config := dialConfig{
-		maxActiveDials: 1,
-		maxDialPeers:   1,
-	}
-	node := newNode(uintID(0x01), ":30303").WithHostname("node-hostname")
-	resolved := newNode(uintID(0x01), "1.2.3.4:30303").WithHostname("node-hostname")
-	runDialTest(t, config, []dialTestRound{
-		{
-			update: func(d *dialScheduler) {
-				d.dnsLookupFunc = func(ctx context.Context, network string, name string) ([]netip.Addr, error) {
-					if name != "node-hostname" {
-						t.Error("wrong hostname in DNS lookup:", name)
-					}
-					result := []netip.Addr{netip.MustParseAddr("1.2.3.4")}
-					return result, nil
-				}
-				d.addStatic(node)
-			},
-			wantNewDials: []*enode.Node{
-				resolved,
 			},
 		},
 	})
@@ -613,7 +586,7 @@ func (d *dialTestDialer) Dial(ctx context.Context, n *enode.Node) (net.Conn, err
 // waitForDials waits for calls to Dial with the given nodes as argument.
 // Those calls will be held blocking until completeDials is called with the same nodes.
 func (d *dialTestDialer) waitForDials(nodes []*enode.Node) error {
-	waitset := make(map[enode.ID]*enode.Node, len(nodes))
+	waitset := make(map[enode.ID]*enode.Node)
 	for _, n := range nodes {
 		waitset[n.ID()] = n
 	}

@@ -32,10 +32,8 @@ import (
 
 // TestPack tests the general pack/unpack tests in packing_test.go
 func TestPack(t *testing.T) {
-	t.Parallel()
 	for i, test := range packUnpackTests {
 		t.Run(strconv.Itoa(i), func(t *testing.T) {
-			t.Parallel()
 			encb, err := hex.DecodeString(test.packed)
 			if err != nil {
 				t.Fatalf("invalid hex %s: %v", test.packed, err)
@@ -59,7 +57,6 @@ func TestPack(t *testing.T) {
 }
 
 func TestMethodPack(t *testing.T) {
-	t.Parallel()
 	abi, err := JSON(strings.NewReader(jsondata))
 	if err != nil {
 		t.Fatal(err)
@@ -78,7 +75,7 @@ func TestMethodPack(t *testing.T) {
 		t.Errorf("expected %x got %x", sig, packed)
 	}
 
-	var addrA, addrB = common.Address{1}, common.Address{2}
+	addrA, addrB := common.Address{1}, common.Address{2}
 	sig = abi.Methods["sliceAddress"].ID
 	sig = append(sig, common.LeftPadBytes([]byte{32}, 32)...)
 	sig = append(sig, common.LeftPadBytes([]byte{2}, 32)...)
@@ -93,7 +90,7 @@ func TestMethodPack(t *testing.T) {
 		t.Errorf("expected %x got %x", sig, packed)
 	}
 
-	var addrC, addrD = common.Address{3}, common.Address{4}
+	addrC, addrD := common.Address{3}, common.Address{4}
 	sig = abi.Methods["sliceMultiAddress"].ID
 	sig = append(sig, common.LeftPadBytes([]byte{64}, 32)...)
 	sig = append(sig, common.LeftPadBytes([]byte{160}, 32)...)
@@ -180,7 +177,6 @@ func TestMethodPack(t *testing.T) {
 }
 
 func TestPackNumber(t *testing.T) {
-	t.Parallel()
 	tests := []struct {
 		value  reflect.Value
 		packed []byte

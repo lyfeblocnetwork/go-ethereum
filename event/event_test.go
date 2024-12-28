@@ -100,6 +100,7 @@ func TestSubscribeDuplicateType(t *testing.T) {
 }
 
 func TestMuxConcurrent(t *testing.T) {
+	rand.Seed(time.Now().Unix())
 	mux := new(TypeMux)
 	defer mux.Stop()
 
@@ -179,7 +180,7 @@ func BenchmarkPost1000(b *testing.B) {
 }
 
 func BenchmarkPostConcurrent(b *testing.B) {
-	var mux = new(TypeMux)
+	mux := new(TypeMux)
 	defer mux.Stop()
 	emptySubscriber(mux)
 	emptySubscriber(mux)

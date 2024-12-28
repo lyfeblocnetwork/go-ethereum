@@ -73,14 +73,6 @@ var (
 	DerivationSignatureHash = sha256.Sum256(common.Hash{}.Bytes())
 )
 
-var (
-	// PinRegexp is the regular expression used to validate PIN codes.
-	pinRegexp = regexp.MustCompile(`^[0-9]{6,}$`)
-
-	// PukRegexp is the regular expression used to validate PUK codes.
-	pukRegexp = regexp.MustCompile(`^[0-9]{12,}$`)
-)
-
 // List of APDU command-related constants
 const (
 	claISO7816  = 0
@@ -107,8 +99,8 @@ const (
 	P1DeriveKeyFromCurrent = uint8(0x10)
 	statusP1WalletStatus   = uint8(0x00)
 	statusP1Path           = uint8(0x01)
-	signP1PrecomputedHash  = uint8(0x00)
-	signP2OnlyBlock        = uint8(0x00)
+	signP1PrecomputedHash  = uint8(0x01)
+	signP2OnlyBlock        = uint8(0x81)
 	exportP1Any            = uint8(0x00)
 	exportP2Pubkey         = uint8(0x01)
 )
@@ -260,7 +252,7 @@ func (w *Wallet) release() error {
 // with the wallet.
 func (w *Wallet) pair(puk []byte) error {
 	if w.session.paired() {
-		return errors.New("wallet already paired")
+		return fmt.Errorf("wallet already paired")
 	}
 	pairing, err := w.session.pair(puk)
 	if err != nil {
@@ -388,7 +380,7 @@ func (w *Wallet) Open(passphrase string) error {
 	case passphrase == "":
 		return ErrPINUnblockNeeded
 	case status.PinRetryCount > 0:
-		if !pinRegexp.MatchString(passphrase) {
+		if !regexp.MustCompile(`^[0-9]{6,}$`).MatchString(passphrase) {
 			w.log.Error("PIN needs to be at least 6 digits")
 			return ErrPINNeeded
 		}
@@ -396,7 +388,7 @@ func (w *Wallet) Open(passphrase string) error {
 			return err
 		}
 	default:
-		if !pukRegexp.MatchString(passphrase) {
+		if !regexp.MustCompile(`^[0-9]{12,}$`).MatchString(passphrase) {
 			w.log.Error("PUK needs to be at least 12 digits")
 			return ErrPINUnblockNeeded
 		}
@@ -784,16 +776,16 @@ func (w *Wallet) findAccountPath(account accounts.Account) (accounts.DerivationP
 		return nil, fmt.Errorf("scheme %s does not match wallet scheme %s", account.URL.Scheme, w.Hub.scheme)
 	}
 
-	url, path, found := strings.Cut(account.URL.Path, "/")
-	if !found {
+	parts := strings.SplitN(account.URL.Path, "/", 2)
+	if len(parts) != 2 {
 		return nil, fmt.Errorf("invalid URL format: %s", account.URL)
 	}
 
-	if url != fmt.Sprintf("%x", w.PublicKey[1:3]) {
+	if parts[0] != fmt.Sprintf("%x", w.PublicKey[1:3]) {
 		return nil, fmt.Errorf("URL %s is not for this wallet", account.URL)
 	}
 
-	return accounts.ParseDerivationPath(path)
+	return accounts.ParseDerivationPath(parts[1])
 }
 
 // Session represents a secured communication session with the wallet.
@@ -821,7 +813,7 @@ func (s *Session) pair(secret []byte) (smartcardPairing, error) {
 // unpair deletes an existing pairing.
 func (s *Session) unpair() error {
 	if !s.verified {
-		return errors.New("unpair requires that the PIN be verified")
+		return fmt.Errorf("unpair requires that the PIN be verified")
 	}
 	return s.Channel.Unpair()
 }
@@ -915,7 +907,7 @@ func (s *Session) initialize(seed []byte) error {
 		return err
 	}
 	if status == "Online" {
-		return errors.New("card is already initialized, cowardly refusing to proceed")
+		return fmt.Errorf("card is already initialized, cowardly refusing to proceed")
 	}
 
 	s.Wallet.lock.Lock()

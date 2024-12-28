@@ -18,8 +18,9 @@ package rawdb
 
 import (
 	"fmt"
-	"math"
+	"sync/atomic"
 
+	"github.com/ethereum/go-ethereum/common/math"
 	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/golang/snappy"
 )
@@ -106,7 +107,7 @@ func (t *freezerTable) newBatch() *freezerTableBatch {
 func (batch *freezerTableBatch) reset() {
 	batch.dataBuffer = batch.dataBuffer[:0]
 	batch.indexBuffer = batch.indexBuffer[:0]
-	batch.curItem = batch.t.items.Load()
+	batch.curItem = atomic.LoadUint64(&batch.t.items)
 	batch.totalBytes = 0
 }
 
@@ -180,20 +181,17 @@ func (batch *freezerTableBatch) maybeCommit() error {
 	return nil
 }
 
-// commit writes the batched items to the backing freezerTable. Note index
-// file isn't fsync'd after the file write, the recent write can be lost
-// after the power failure.
+// commit writes the batched items to the backing freezerTable.
 func (batch *freezerTableBatch) commit() error {
+	// Write data.
 	_, err := batch.t.head.Write(batch.dataBuffer)
 	if err != nil {
-		return err
-	}
-	if err := batch.t.head.Sync(); err != nil {
 		return err
 	}
 	dataSize := int64(len(batch.dataBuffer))
 	batch.dataBuffer = batch.dataBuffer[:0]
 
+	// Write indices.
 	_, err = batch.t.index.Write(batch.indexBuffer)
 	if err != nil {
 		return err
@@ -203,7 +201,7 @@ func (batch *freezerTableBatch) commit() error {
 
 	// Update headBytes of table.
 	batch.t.headBytes += dataSize
-	batch.t.items.Store(batch.curItem)
+	atomic.StoreUint64(&batch.t.items, batch.curItem)
 
 	// Update metrics.
 	batch.t.sizeGauge.Inc(dataSize + indexSize)

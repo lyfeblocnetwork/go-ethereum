@@ -222,13 +222,13 @@ func (b *testChainIndexBackend) Process(ctx context.Context, header *types.Heade
 	if b.headerCnt > b.indexer.sectionSize {
 		b.t.Error("Processing too many headers")
 	}
-	//t.processCh <- header.Number.Uint64()
+	// t.processCh <- header.Number.Uint64()
 	select {
 	case <-time.After(10 * time.Second):
 		b.t.Error("Unexpected call to Process")
 		// Can't use Fatal since this is not the test's goroutine.
 		// Returning error stops the chainIndexer's updateLoop
-		return errors.New("unexpected call to Process")
+		return errors.New("Unexpected call to Process")
 	case b.processCh <- header.Number.Uint64():
 	}
 	return nil

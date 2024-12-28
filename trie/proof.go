@@ -22,6 +22,7 @@ import (
 	"fmt"
 
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/core/rawdb"
 	"github.com/ethereum/go-ethereum/ethdb"
 	"github.com/ethereum/go-ethereum/log"
 )
@@ -33,11 +34,7 @@ import (
 // If the trie does not contain a value for key, the returned proof contains all
 // nodes of the longest existing prefix of the key (at least the root node), ending
 // with the node that proves the absence of the key.
-func (t *Trie) Prove(key []byte, proofDb ethdb.KeyValueWriter) error {
-	// Short circuit if the trie is already committed and not usable.
-	if t.committed {
-		return ErrCommitted
-	}
+func (t *Trie) Prove(key []byte, fromLevel uint, proofDb ethdb.KeyValueWriter) error {
 	// Collect all nodes on the path to key.
 	var (
 		prefix []byte
@@ -48,7 +45,7 @@ func (t *Trie) Prove(key []byte, proofDb ethdb.KeyValueWriter) error {
 	for len(key) > 0 && tn != nil {
 		switch n := tn.(type) {
 		case *shortNode:
-			if !bytes.HasPrefix(key, n.Key) {
+			if len(key) < len(n.Key) || !bytes.Equal(n.Key, key[:len(n.Key)]) {
 				// The trie doesn't contain the key.
 				tn = nil
 			} else {
@@ -63,20 +60,12 @@ func (t *Trie) Prove(key []byte, proofDb ethdb.KeyValueWriter) error {
 			key = key[1:]
 			nodes = append(nodes, n)
 		case hashNode:
-			// Retrieve the specified node from the underlying node reader.
-			// trie.resolveAndTrack is not used since in that function the
-			// loaded blob will be tracked, while it's not required here since
-			// all loaded nodes won't be linked to trie at all and track nodes
-			// may lead to out-of-memory issue.
-			blob, err := t.reader.node(prefix, common.BytesToHash(n))
+			var err error
+			tn, err = t.resolveHash(n, prefix)
 			if err != nil {
-				log.Error("Unhandled trie error in Trie.Prove", "err", err)
+				log.Error(fmt.Sprintf("Unhandled trie error: %v", err))
 				return err
 			}
-			// The raw-blob format nodes are loaded either from the
-			// clean cache or the database, they are all in their own
-			// copy and safe to use unsafe decoder.
-			tn = mustDecodeNodeUnsafe(n, blob)
 		default:
 			panic(fmt.Sprintf("%T: invalid node: %v", tn, tn))
 		}
@@ -85,6 +74,10 @@ func (t *Trie) Prove(key []byte, proofDb ethdb.KeyValueWriter) error {
 	defer returnHasherToPool(hasher)
 
 	for i, n := range nodes {
+		if fromLevel > 0 {
+			fromLevel--
+			continue
+		}
 		var hn node
 		n, hn = hasher.proofHash(n)
 		if hash, ok := hn.(hashNode); ok || i == 0 {
@@ -107,8 +100,8 @@ func (t *Trie) Prove(key []byte, proofDb ethdb.KeyValueWriter) error {
 // If the trie does not contain a value for key, the returned proof contains all
 // nodes of the longest existing prefix of the key (at least the root node), ending
 // with the node that proves the absence of the key.
-func (t *StateTrie) Prove(key []byte, proofDb ethdb.KeyValueWriter) error {
-	return t.trie.Prove(key, proofDb)
+func (t *StateTrie) Prove(key []byte, fromLevel uint, proofDb ethdb.KeyValueWriter) error {
+	return t.trie.Prove(key, fromLevel, proofDb)
 }
 
 // VerifyProof checks merkle proofs. The given proof must contain the value for
@@ -371,12 +364,12 @@ func unset(parent node, child node, key []byte, pos int, removeLeft bool) error 
 		}
 		return unset(cld, cld.Children[key[pos]], key, pos+1, removeLeft)
 	case *shortNode:
-		if !bytes.HasPrefix(key[pos:], cld.Key) {
-			// Find the fork point, it's a non-existent branch.
+		if len(key[pos:]) < len(cld.Key) || !bytes.Equal(cld.Key, key[pos:pos+len(cld.Key)]) {
+			// Find the fork point, it's an non-existent branch.
 			if removeLeft {
 				if bytes.Compare(cld.Key, key[pos:]) < 0 {
 					// The key of fork shortnode is less than the path
-					// (it belongs to the range), unset the entire
+					// (it belongs to the range), unset the entrie
 					// branch. The parent must be a fullnode.
 					fn := parent.(*fullNode)
 					fn.Children[key[pos-1]] = nil
@@ -389,7 +382,7 @@ func unset(parent node, child node, key []byte, pos int, removeLeft bool) error 
 			} else {
 				if bytes.Compare(cld.Key, key[pos:]) > 0 {
 					// The key of fork shortnode is greater than the
-					// path(it belongs to the range), unset the entries
+					// path(it belongs to the range), unset the entrie
 					// branch. The parent must be a fullnode.
 					fn := parent.(*fullNode)
 					fn.Children[key[pos-1]] = nil
@@ -434,7 +427,7 @@ func hasRightElement(node node, key []byte) bool {
 			}
 			node, pos = rn.Children[key[pos]], pos+1
 		case *shortNode:
-			if !bytes.HasPrefix(key[pos:], rn.Key) {
+			if len(key)-pos < len(rn.Key) || !bytes.Equal(rn.Key, key[pos:pos+len(rn.Key)]) {
 				return bytes.Compare(rn.Key, key[pos:]) > 0
 			}
 			node, pos = rn.Val, pos+len(rn.Key)
@@ -481,16 +474,18 @@ func hasRightElement(node node, key []byte) bool {
 // Note: This method does not verify that the proof is of minimal form. If the input
 // proofs are 'bloated' with neighbour leaves or random data, aside from the 'useful'
 // data, then the proof will still be accepted.
-func VerifyRangeProof(rootHash common.Hash, firstKey []byte, keys [][]byte, values [][]byte, proof ethdb.KeyValueReader) (bool, error) {
+func VerifyRangeProof(rootHash common.Hash, firstKey []byte, lastKey []byte, keys [][]byte, values [][]byte, proof ethdb.KeyValueReader) (bool, error) {
 	if len(keys) != len(values) {
 		return false, fmt.Errorf("inconsistent proof data, keys: %d, values: %d", len(keys), len(values))
 	}
 	// Ensure the received batch is monotonic increasing and contains no deletions
-	for i := 0; i < len(keys); i++ {
-		if i < len(keys)-1 && bytes.Compare(keys[i], keys[i+1]) >= 0 {
+	for i := 0; i < len(keys)-1; i++ {
+		if bytes.Compare(keys[i], keys[i+1]) >= 0 {
 			return false, errors.New("range is not monotonically increasing")
 		}
-		if len(values[i]) == 0 {
+	}
+	for _, value := range values {
+		if len(value) == 0 {
 			return false, errors.New("range contains deletion")
 		}
 	}
@@ -499,7 +494,7 @@ func VerifyRangeProof(rootHash common.Hash, firstKey []byte, keys [][]byte, valu
 	if proof == nil {
 		tr := NewStackTrie(nil)
 		for index, key := range keys {
-			tr.Update(key, values[index])
+			tr.TryUpdate(key, values[index])
 		}
 		if have, want := tr.Hash(), rootHash; have != want {
 			return false, fmt.Errorf("invalid proof, want hash %x, got %x", want, have)
@@ -518,7 +513,6 @@ func VerifyRangeProof(rootHash common.Hash, firstKey []byte, keys [][]byte, valu
 		}
 		return false, nil
 	}
-	var lastKey = keys[len(keys)-1]
 	// Special case, there is only one element and two edge keys are same.
 	// In this case, we can't construct two edge paths. So handle it here.
 	if len(keys) == 1 && bytes.Equal(firstKey, lastKey) {
@@ -565,12 +559,12 @@ func VerifyRangeProof(rootHash common.Hash, firstKey []byte, keys [][]byte, valu
 	}
 	// Rebuild the trie with the leaf stream, the shape of trie
 	// should be same with the original one.
-	tr := &Trie{root: root, reader: newEmptyReader(), tracer: newTracer()}
+	tr := &Trie{root: root, db: NewDatabase(rawdb.NewMemoryDatabase())}
 	if empty {
 		tr.root = nil
 	}
 	for index, key := range keys {
-		tr.Update(key, values[index])
+		tr.TryUpdate(key, values[index])
 	}
 	if tr.Hash() != rootHash {
 		return false, fmt.Errorf("invalid proof, want hash %x, got %x", rootHash, tr.Hash())
@@ -587,7 +581,7 @@ func get(tn node, key []byte, skipResolved bool) ([]byte, node) {
 	for {
 		switch n := tn.(type) {
 		case *shortNode:
-			if !bytes.HasPrefix(key, n.Key) {
+			if len(key) < len(n.Key) || !bytes.Equal(n.Key, key[:len(n.Key)]) {
 				return nil, nil
 			}
 			tn = n.Val

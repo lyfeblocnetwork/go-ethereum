@@ -22,40 +22,34 @@ import (
 	"fmt"
 	"os"
 	"reflect"
-	"runtime"
-	"slices"
-	"strings"
 	"unicode"
 
-	"github.com/ethereum/go-ethereum/accounts"
+	"github.com/urfave/cli/v2"
+
 	"github.com/ethereum/go-ethereum/accounts/external"
 	"github.com/ethereum/go-ethereum/accounts/keystore"
 	"github.com/ethereum/go-ethereum/accounts/scwallet"
 	"github.com/ethereum/go-ethereum/accounts/usbwallet"
-	"github.com/ethereum/go-ethereum/beacon/blsync"
 	"github.com/ethereum/go-ethereum/cmd/utils"
-	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/common/hexutil"
-	"github.com/ethereum/go-ethereum/eth/catalyst"
+	"github.com/ethereum/go-ethereum/core/rawdb"
 	"github.com/ethereum/go-ethereum/eth/ethconfig"
+	"github.com/ethereum/go-ethereum/internal/ethapi"
 	"github.com/ethereum/go-ethereum/internal/flags"
-	"github.com/ethereum/go-ethereum/internal/version"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/metrics"
 	"github.com/ethereum/go-ethereum/node"
-	"github.com/ethereum/go-ethereum/rpc"
+	"github.com/ethereum/go-ethereum/params"
 	"github.com/naoina/toml"
-	"github.com/urfave/cli/v2"
 )
 
 var (
 	dumpConfigCommand = &cli.Command{
 		Action:      dumpConfig,
 		Name:        "dumpconfig",
-		Usage:       "Export configuration values in a TOML format",
-		ArgsUsage:   "<dumpfile (optional)>",
-		Flags:       slices.Concat(nodeFlags, rpcFlags),
-		Description: `Export configuration values in TOML format (to stdout by default).`,
+		Usage:       "Show configuration values",
+		ArgsUsage:   "",
+		Flags:       flags.Merge(nodeFlags, rpcFlags),
+		Description: `The dumpconfig command shows configuration values.`,
 	}
 
 	configFileFlag = &cli.StringFlag{
@@ -75,8 +69,8 @@ var tomlSettings = toml.Config{
 	},
 	MissingField: func(rt reflect.Type, field string) error {
 		id := fmt.Sprintf("%s.%s", rt.String(), field)
-		if deprecatedConfigFields[id] {
-			log.Warn(fmt.Sprintf("Config field '%s' is deprecated and won't have any effect.", id))
+		if deprecated(id) {
+			log.Warn("Config field is deprecated and won't have an effect", "name", id)
 			return nil
 		}
 		var link string
@@ -85,19 +79,6 @@ var tomlSettings = toml.Config{
 		}
 		return fmt.Errorf("field '%s' is not defined in %s%s", field, rt.String(), link)
 	},
-}
-
-var deprecatedConfigFields = map[string]bool{
-	"ethconfig.Config.EVMInterpreter":          true,
-	"ethconfig.Config.EWASMInterpreter":        true,
-	"ethconfig.Config.TrieCleanCacheJournal":   true,
-	"ethconfig.Config.TrieCleanCacheRejournal": true,
-	"ethconfig.Config.LightServ":               true,
-	"ethconfig.Config.LightIngress":            true,
-	"ethconfig.Config.LightEgress":             true,
-	"ethconfig.Config.LightPeers":              true,
-	"ethconfig.Config.LightNoPrune":            true,
-	"ethconfig.Config.LightNoSyncServe":        true,
 }
 
 type ethstatsConfig struct {
@@ -127,19 +108,17 @@ func loadConfig(file string, cfg *gethConfig) error {
 }
 
 func defaultNodeConfig() node.Config {
-	git, _ := version.VCS()
 	cfg := node.DefaultConfig
 	cfg.Name = clientIdentifier
-	cfg.Version = version.WithCommit(git.Commit, git.Date)
+	cfg.Version = params.VersionWithCommit(gitCommit, gitDate)
 	cfg.HTTPModules = append(cfg.HTTPModules, "eth")
 	cfg.WSModules = append(cfg.WSModules, "eth")
-	cfg.IPCPath = clientIdentifier + ".ipc"
+	cfg.IPCPath = "geth.ipc"
 	return cfg
 }
 
-// loadBaseConfig loads the gethConfig based on the given command line
-// parameters and config file.
-func loadBaseConfig(ctx *cli.Context) gethConfig {
+// makeConfigNode loads geth configuration and creates a blank node instance.
+func makeConfigNode(ctx *cli.Context) (*node.Node, gethConfig) {
 	// Load defaults.
 	cfg := gethConfig{
 		Eth:     ethconfig.Defaults,
@@ -156,18 +135,12 @@ func loadBaseConfig(ctx *cli.Context) gethConfig {
 
 	// Apply flags.
 	utils.SetNodeConfig(ctx, &cfg.Node)
-	return cfg
-}
-
-// makeConfigNode loads geth configuration and creates a blank node instance.
-func makeConfigNode(ctx *cli.Context) (*node.Node, gethConfig) {
-	cfg := loadBaseConfig(ctx)
 	stack, err := node.New(&cfg.Node)
 	if err != nil {
 		utils.Fatalf("Failed to create the protocol stack: %v", err)
 	}
 	// Node doesn't by default populate account manager backends
-	if err := setAccountManagerBackends(stack.Config(), stack.AccountManager(), stack.KeyStoreDir()); err != nil {
+	if err := setAccountManagerBackends(stack); err != nil {
 		utils.Fatalf("Failed to set account manager backends: %v", err)
 	}
 
@@ -181,34 +154,34 @@ func makeConfigNode(ctx *cli.Context) (*node.Node, gethConfig) {
 }
 
 // makeFullNode loads geth configuration and creates the Ethereum backend.
-func makeFullNode(ctx *cli.Context) *node.Node {
+func makeFullNode(ctx *cli.Context) (*node.Node, ethapi.Backend) {
 	stack, cfg := makeConfigNode(ctx)
-	if ctx.IsSet(utils.OverrideCancun.Name) {
-		v := ctx.Uint64(utils.OverrideCancun.Name)
-		cfg.Eth.OverrideCancun = &v
+	if ctx.IsSet(utils.OverrideTerminalTotalDifficulty.Name) {
+		cfg.Eth.OverrideTerminalTotalDifficulty = flags.GlobalBig(ctx, utils.OverrideTerminalTotalDifficulty.Name)
 	}
-	if ctx.IsSet(utils.OverrideVerkle.Name) {
-		v := ctx.Uint64(utils.OverrideVerkle.Name)
-		cfg.Eth.OverrideVerkle = &v
+	if ctx.IsSet(utils.OverrideTerminalTotalDifficultyPassed.Name) {
+		override := ctx.Bool(utils.OverrideTerminalTotalDifficultyPassed.Name)
+		cfg.Eth.OverrideTerminalTotalDifficultyPassed = &override
 	}
-
-	// Start metrics export if enabled
-	utils.SetupMetrics(&cfg.Metrics)
 
 	backend, eth := utils.RegisterEthService(stack, &cfg.Eth)
 
-	// Create gauge with geth system and build information
-	if eth != nil { // The 'eth' backend may be nil in light mode
-		var protos []string
-		for _, p := range eth.Protocols() {
-			protos = append(protos, fmt.Sprintf("%v/%d", p.Name, p.Version))
+	// Warn users to migrate if they have a legacy freezer format.
+	if eth != nil && !ctx.IsSet(utils.IgnoreLegacyReceiptsFlag.Name) {
+		firstIdx := uint64(0)
+		// Hack to speed up check for mainnet because we know
+		// the first non-empty block.
+		ghash := rawdb.ReadCanonicalHash(eth.ChainDb(), 0)
+		if cfg.Eth.NetworkId == 1 && ghash == params.MainnetGenesisHash {
+			firstIdx = 46147
 		}
-		metrics.NewRegisteredGaugeInfo("geth/info", nil).Update(metrics.GaugeInfoValue{
-			"arch":      runtime.GOARCH,
-			"os":        runtime.GOOS,
-			"version":   cfg.Node.Version,
-			"protocols": strings.Join(protos, ","),
-		})
+		isLegacy, _, err := dbHasLegacyReceipts(eth.ChainDb(), firstIdx)
+		if err != nil {
+			log.Error("Failed to check db for legacy receipts", "err", err)
+		} else if isLegacy {
+			stack.Close()
+			utils.Fatalf("Database has receipts with a legacy format. Please run `geth db freezer-migrate`.")
+		}
 	}
 
 	// Configure log filter RPC API.
@@ -218,42 +191,12 @@ func makeFullNode(ctx *cli.Context) *node.Node {
 	if ctx.IsSet(utils.GraphQLEnabledFlag.Name) {
 		utils.RegisterGraphQLService(stack, backend, filterSystem, &cfg.Node)
 	}
+
 	// Add the Ethereum Stats daemon if requested.
 	if cfg.Ethstats.URL != "" {
 		utils.RegisterEthStatsService(stack, backend, cfg.Ethstats.URL)
 	}
-	// Configure full-sync tester service if requested
-	if ctx.IsSet(utils.SyncTargetFlag.Name) {
-		hex := hexutil.MustDecode(ctx.String(utils.SyncTargetFlag.Name))
-		if len(hex) != common.HashLength {
-			utils.Fatalf("invalid sync target length: have %d, want %d", len(hex), common.HashLength)
-		}
-		utils.RegisterFullSyncTester(stack, eth, common.BytesToHash(hex))
-	}
-
-	if ctx.IsSet(utils.DeveloperFlag.Name) {
-		// Start dev mode.
-		simBeacon, err := catalyst.NewSimulatedBeacon(ctx.Uint64(utils.DeveloperPeriodFlag.Name), eth)
-		if err != nil {
-			utils.Fatalf("failed to register dev mode catalyst service: %v", err)
-		}
-		catalyst.RegisterSimulatedBeaconAPIs(stack, simBeacon)
-		stack.RegisterLifecycle(simBeacon)
-	} else if ctx.IsSet(utils.BeaconApiFlag.Name) {
-		// Start blsync mode.
-		srv := rpc.NewServer()
-		srv.RegisterName("engine", catalyst.NewConsensusAPI(eth))
-		blsyncer := blsync.NewClient(utils.MakeBeaconLightConfig(ctx))
-		blsyncer.SetEngineRPC(rpc.DialInProc(srv))
-		stack.RegisterLifecycle(blsyncer)
-	} else {
-		// Launch the engine API for interacting with external consensus client.
-		err := catalyst.Register(stack, eth)
-		if err != nil {
-			utils.Fatalf("failed to register catalyst service: %v", err)
-		}
-	}
-	return stack
+	return stack, backend
 }
 
 // dumpConfig is the dumpconfig command.
@@ -273,7 +216,7 @@ func dumpConfig(ctx *cli.Context) error {
 
 	dump := os.Stdout
 	if ctx.NArg() > 0 {
-		dump, err = os.OpenFile(ctx.Args().Get(0), os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0644)
+		dump, err = os.OpenFile(ctx.Args().Get(0), os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0o644)
 		if err != nil {
 			return err
 		}
@@ -290,7 +233,7 @@ func applyMetricConfig(ctx *cli.Context, cfg *gethConfig) {
 		cfg.Metrics.Enabled = ctx.Bool(utils.MetricsEnabledFlag.Name)
 	}
 	if ctx.IsSet(utils.MetricsEnabledExpensiveFlag.Name) {
-		log.Warn("Expensive metrics are collected by default, please remove this flag", "flag", utils.MetricsEnabledExpensiveFlag.Name)
+		cfg.Metrics.EnabledExpensive = ctx.Bool(utils.MetricsEnabledExpensiveFlag.Name)
 	}
 	if ctx.IsSet(utils.MetricsHTTPFlag.Name) {
 		cfg.Metrics.HTTP = ctx.String(utils.MetricsHTTPFlag.Name)
@@ -328,30 +271,23 @@ func applyMetricConfig(ctx *cli.Context, cfg *gethConfig) {
 	if ctx.IsSet(utils.MetricsInfluxDBOrganizationFlag.Name) {
 		cfg.Metrics.InfluxDBOrganization = ctx.String(utils.MetricsInfluxDBOrganizationFlag.Name)
 	}
-	// Sanity-check the commandline flags. It is fine if some unused fields is part
-	// of the toml-config, but we expect the commandline to only contain relevant
-	// arguments, otherwise it indicates an error.
-	var (
-		enableExport   = ctx.Bool(utils.MetricsEnableInfluxDBFlag.Name)
-		enableExportV2 = ctx.Bool(utils.MetricsEnableInfluxDBV2Flag.Name)
-	)
-	if enableExport || enableExportV2 {
-		v1FlagIsSet := ctx.IsSet(utils.MetricsInfluxDBUsernameFlag.Name) ||
-			ctx.IsSet(utils.MetricsInfluxDBPasswordFlag.Name)
+}
 
-		v2FlagIsSet := ctx.IsSet(utils.MetricsInfluxDBTokenFlag.Name) ||
-			ctx.IsSet(utils.MetricsInfluxDBOrganizationFlag.Name) ||
-			ctx.IsSet(utils.MetricsInfluxDBBucketFlag.Name)
-
-		if enableExport && v2FlagIsSet {
-			utils.Fatalf("Flags --influxdb.metrics.organization, --influxdb.metrics.token, --influxdb.metrics.bucket are only available for influxdb-v2")
-		} else if enableExportV2 && v1FlagIsSet {
-			utils.Fatalf("Flags --influxdb.metrics.username, --influxdb.metrics.password are only available for influxdb-v1")
-		}
+func deprecated(field string) bool {
+	switch field {
+	case "ethconfig.Config.EVMInterpreter":
+		return true
+	case "ethconfig.Config.EWASMInterpreter":
+		return true
+	default:
+		return false
 	}
 }
 
-func setAccountManagerBackends(conf *node.Config, am *accounts.Manager, keydir string) error {
+func setAccountManagerBackends(stack *node.Node) error {
+	conf := stack.Config()
+	am := stack.AccountManager()
+	keydir := stack.KeyStoreDir()
 	scryptN := keystore.StandardScryptN
 	scryptP := keystore.StandardScryptP
 	if conf.UseLightweightKDF {
@@ -362,8 +298,8 @@ func setAccountManagerBackends(conf *node.Config, am *accounts.Manager, keydir s
 	// Assemble the supported backends
 	if len(conf.ExternalSigner) > 0 {
 		log.Info("Using external signer", "url", conf.ExternalSigner)
-		if extBackend, err := external.NewExternalBackend(conf.ExternalSigner); err == nil {
-			am.AddBackend(extBackend)
+		if extapi, err := external.NewExternalBackend(conf.ExternalSigner); err == nil {
+			am.AddBackend(extapi)
 			return nil
 		} else {
 			return fmt.Errorf("error connecting to external signer: %v", err)

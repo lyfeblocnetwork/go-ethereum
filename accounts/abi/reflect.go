@@ -24,20 +24,19 @@ import (
 	"strings"
 )
 
-// ConvertType converts an interface of a runtime type into an interface of the
-// given type, e.g. turn this code:
-//
-//	var fields []reflect.StructField
+// ConvertType converts an interface of a runtime type into a interface of the
+// given type
+// e.g. turn
+// var fields []reflect.StructField
 //
 //	fields = append(fields, reflect.StructField{
 //			Name: "X",
 //			Type: reflect.TypeOf(new(big.Int)),
 //			Tag:  reflect.StructTag("json:\"" + "x" + "\""),
-//	})
+//	}
 //
-// into:
-//
-//	type TupleT struct { X *big.Int }
+// into
+// type TupleT struct { X *big.Int }
 func ConvertType(in interface{}, proto interface{}) interface{} {
 	protoType := reflect.TypeOf(proto)
 	if reflect.TypeOf(in).ConvertibleTo(protoType) {
@@ -134,7 +133,7 @@ func setSlice(dst, src reflect.Value) error {
 		dst.Set(slice)
 		return nil
 	}
-	return errors.New("cannot set slice, destination not settable")
+	return errors.New("Cannot set slice, destination not settable")
 }
 
 func setArray(dst, src reflect.Value) error {
@@ -155,7 +154,7 @@ func setArray(dst, src reflect.Value) error {
 		dst.Set(array)
 		return nil
 	}
-	return errors.New("cannot set array, destination not settable")
+	return errors.New("Cannot set array, destination not settable")
 }
 
 func setStruct(dst, src reflect.Value) error {
@@ -163,7 +162,7 @@ func setStruct(dst, src reflect.Value) error {
 		srcField := src.Field(i)
 		dstField := dst.Field(i)
 		if !dstField.IsValid() || !srcField.IsValid() {
-			return fmt.Errorf("could not find src field: %v value: %v in destination", srcField.Type().Name(), srcField)
+			return fmt.Errorf("Could not find src field: %v value: %v in destination", srcField.Type().Name(), srcField)
 		}
 		if err := set(dstField, srcField); err != nil {
 			return err
@@ -173,12 +172,14 @@ func setStruct(dst, src reflect.Value) error {
 }
 
 // mapArgNamesToStructFields maps a slice of argument names to struct fields.
+// first round: for each Exportable field that contains a `abi:""` tag
 //
-// first round: for each Exportable field that contains a `abi:""` tag and this field name
-// exists in the given argument name list, pair them together.
+//	and this field name exists in the given argument name list, pair them together.
 //
-// second round: for each argument name that has not been already linked, find what
-// variable is expected to be mapped into, if it exists and has not been used, pair them.
+// second round: for each argument name that has not been already linked,
+//
+//	find what variable is expected to be mapped into, if it exists and has not been
+//	used, pair them.
 //
 // Note this function assumes the given value is a struct value.
 func mapArgNamesToStructFields(argNames []string, value reflect.Value) (map[string]string, error) {
@@ -228,7 +229,7 @@ func mapArgNamesToStructFields(argNames []string, value reflect.Value) (map[stri
 		structFieldName := ToCamelCase(argName)
 
 		if structFieldName == "" {
-			return nil, errors.New("abi: purely underscored output cannot unpack to struct")
+			return nil, fmt.Errorf("abi: purely underscored output cannot unpack to struct")
 		}
 
 		// this abi has already been paired, skip it... unless there exists another, yet unassigned

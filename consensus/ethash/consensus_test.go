@@ -17,7 +17,6 @@
 package ethash
 
 import (
-	crand "crypto/rand"
 	"encoding/binary"
 	"encoding/json"
 	"math/big"
@@ -90,24 +89,25 @@ func TestCalcDifficulty(t *testing.T) {
 }
 
 func randSlice(min, max uint32) []byte {
-	var b = make([]byte, 4)
-	crand.Read(b)
+	b := make([]byte, 4)
+	rand.Read(b)
 	a := binary.LittleEndian.Uint32(b)
 	size := min + a%(max-min)
 	out := make([]byte, size)
-	crand.Read(out)
+	rand.Read(out)
 	return out
 }
 
 func TestDifficultyCalculators(t *testing.T) {
+	rand.Seed(2)
 	for i := 0; i < 5000; i++ {
 		// 1 to 300 seconds diff
-		var timeDelta = uint64(1 + rand.Uint32()%3000)
+		timeDelta := uint64(1 + rand.Uint32()%3000)
 		diffBig := new(big.Int).SetBytes(randSlice(2, 10))
 		if diffBig.Cmp(params.MinimumDifficulty) < 0 {
 			diffBig.Set(params.MinimumDifficulty)
 		}
-		//rand.Read(difficulty)
+		// rand.Read(difficulty)
 		header := &types.Header{
 			Difficulty: diffBig,
 			Number:     new(big.Int).SetUint64(rand.Uint64() % 50_000_000),

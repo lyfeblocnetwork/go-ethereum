@@ -31,7 +31,7 @@ import (
 	"github.com/davecgh/go-spew/spew"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/crypto/ecies"
-	"github.com/ethereum/go-ethereum/p2p/pipes"
+	"github.com/ethereum/go-ethereum/p2p/simulations/pipes"
 	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/stretchr/testify/assert"
 )
@@ -368,7 +368,7 @@ func TestHandshakeForwardCompatibility(t *testing.T) {
 }
 
 func BenchmarkHandshakeRead(b *testing.B) {
-	var input = unhex(eip8HandshakeAuthTests[0].input)
+	input := unhex(eip8HandshakeAuthTests[0].input)
 
 	for i := 0; i < b.N; i++ {
 		var (
@@ -421,7 +421,7 @@ func BenchmarkThroughput(b *testing.B) {
 	}
 	conn2.SetSnappy(true)
 	if err := <-handshakeDone; err != nil {
-		b.Fatal("server handshake error:", err)
+		b.Fatal("server hanshake error:", err)
 	}
 
 	// Read N messages.

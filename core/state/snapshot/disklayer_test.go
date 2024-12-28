@@ -117,22 +117,20 @@ func TestDiskMerge(t *testing.T) {
 	base.Storage(conNukeCache, conNukeCacheSlot)
 
 	// Modify or delete some accounts, flatten everything onto disk
-	if err := snaps.Update(diffRoot, baseRoot,
-		map[common.Hash][]byte{
-			accDelNoCache:  nil,
-			accDelCache:    nil,
-			conNukeNoCache: nil,
-			conNukeCache:   nil,
-			accModNoCache:  reverse(accModNoCache[:]),
-			accModCache:    reverse(accModCache[:]),
-		}, map[common.Hash]map[common.Hash][]byte{
-			conNukeNoCache: {conNukeNoCacheSlot: nil},
-			conNukeCache:   {conNukeCacheSlot: nil},
-			conModNoCache:  {conModNoCacheSlot: reverse(conModNoCacheSlot[:])},
-			conModCache:    {conModCacheSlot: reverse(conModCacheSlot[:])},
-			conDelNoCache:  {conDelNoCacheSlot: nil},
-			conDelCache:    {conDelCacheSlot: nil},
-		}); err != nil {
+	if err := snaps.Update(diffRoot, baseRoot, map[common.Hash]struct{}{
+		accDelNoCache:  {},
+		accDelCache:    {},
+		conNukeNoCache: {},
+		conNukeCache:   {},
+	}, map[common.Hash][]byte{
+		accModNoCache: reverse(accModNoCache[:]),
+		accModCache:   reverse(accModCache[:]),
+	}, map[common.Hash]map[common.Hash][]byte{
+		conModNoCache: {conModNoCacheSlot: reverse(conModNoCacheSlot[:])},
+		conModCache:   {conModCacheSlot: reverse(conModCacheSlot[:])},
+		conDelNoCache: {conDelNoCacheSlot: nil},
+		conDelCache:   {conDelCacheSlot: nil},
+	}); err != nil {
 		t.Fatalf("failed to update snapshot tree: %v", err)
 	}
 	if err := snaps.Cap(diffRoot, 0); err != nil {
@@ -141,7 +139,7 @@ func TestDiskMerge(t *testing.T) {
 	// Retrieve all the data through the disk layer and validate it
 	base = snaps.Snapshot(diffRoot)
 	if _, ok := base.(*diskLayer); !ok {
-		t.Fatalf("update not flattened into the disk layer")
+		t.Fatalf("update not flattend into the disk layer")
 	}
 
 	// assertAccount ensures that an account matches the given blob.
@@ -342,27 +340,20 @@ func TestDiskPartialMerge(t *testing.T) {
 		assertStorage(conNukeCache, conNukeCacheSlot, conNukeCacheSlot[:])
 
 		// Modify or delete some accounts, flatten everything onto disk
-		if err := snaps.Update(diffRoot, baseRoot,
-			map[common.Hash][]byte{
-				accDelNoCache:  nil,
-				accDelCache:    nil,
-				conNukeNoCache: nil,
-				conNukeCache:   nil,
-				accModNoCache:  reverse(accModNoCache[:]),
-				accModCache:    reverse(accModCache[:]),
-			},
-			map[common.Hash]map[common.Hash][]byte{
-				conNukeNoCache: {
-					conNukeNoCacheSlot: nil,
-				},
-				conNukeCache: {
-					conNukeCacheSlot: nil,
-				},
-				conModNoCache: {conModNoCacheSlot: reverse(conModNoCacheSlot[:])},
-				conModCache:   {conModCacheSlot: reverse(conModCacheSlot[:])},
-				conDelNoCache: {conDelNoCacheSlot: nil},
-				conDelCache:   {conDelCacheSlot: nil},
-			}); err != nil {
+		if err := snaps.Update(diffRoot, baseRoot, map[common.Hash]struct{}{
+			accDelNoCache:  {},
+			accDelCache:    {},
+			conNukeNoCache: {},
+			conNukeCache:   {},
+		}, map[common.Hash][]byte{
+			accModNoCache: reverse(accModNoCache[:]),
+			accModCache:   reverse(accModCache[:]),
+		}, map[common.Hash]map[common.Hash][]byte{
+			conModNoCache: {conModNoCacheSlot: reverse(conModNoCacheSlot[:])},
+			conModCache:   {conModCacheSlot: reverse(conModCacheSlot[:])},
+			conDelNoCache: {conDelNoCacheSlot: nil},
+			conDelCache:   {conDelCacheSlot: nil},
+		}); err != nil {
 			t.Fatalf("test %d: failed to update snapshot tree: %v", i, err)
 		}
 		if err := snaps.Cap(diffRoot, 0); err != nil {
@@ -371,7 +362,7 @@ func TestDiskPartialMerge(t *testing.T) {
 		// Retrieve all the data through the disk layer and validate it
 		base = snaps.Snapshot(diffRoot)
 		if _, ok := base.(*diskLayer); !ok {
-			t.Fatalf("test %d: update not flattened into the disk layer", i)
+			t.Fatalf("test %d: update not flattend into the disk layer", i)
 		}
 		assertAccount(accNoModNoCache, accNoModNoCache[:])
 		assertAccount(accNoModCache, accNoModCache[:])
@@ -471,11 +462,9 @@ func TestDiskGeneratorPersistence(t *testing.T) {
 		},
 	}
 	// Modify or delete some accounts, flatten everything onto disk
-	if err := snaps.Update(diffRoot, baseRoot,
-		map[common.Hash][]byte{
-			accTwo: accTwo[:],
-		}, nil,
-	); err != nil {
+	if err := snaps.Update(diffRoot, baseRoot, nil, map[common.Hash][]byte{
+		accTwo: accTwo[:],
+	}, nil); err != nil {
 		t.Fatalf("failed to update snapshot tree: %v", err)
 	}
 	if err := snaps.Cap(diffRoot, 0); err != nil {
@@ -491,14 +480,11 @@ func TestDiskGeneratorPersistence(t *testing.T) {
 	}
 	// Test scenario 2, the disk layer is fully generated
 	// Modify or delete some accounts, flatten everything onto disk
-	if err := snaps.Update(diffTwoRoot, diffRoot,
-		map[common.Hash][]byte{
-			accThree: accThree.Bytes(),
-		},
-		map[common.Hash]map[common.Hash][]byte{
-			accThree: {accThreeSlot: accThreeSlot.Bytes()},
-		},
-	); err != nil {
+	if err := snaps.Update(diffTwoRoot, diffRoot, nil, map[common.Hash][]byte{
+		accThree: accThree.Bytes(),
+	}, map[common.Hash]map[common.Hash][]byte{
+		accThree: {accThreeSlot: accThreeSlot.Bytes()},
+	}); err != nil {
 		t.Fatalf("failed to update snapshot tree: %v", err)
 	}
 	diskLayer := snaps.layers[snaps.diskRoot()].(*diskLayer)
@@ -557,7 +543,7 @@ func TestDiskSeek(t *testing.T) {
 		pos    byte
 		expkey byte
 	}
-	var cases = []testcase{
+	cases := []testcase{
 		{0xff, 0x55}, // this should exit immediately without checking key
 		{0x01, 0x02},
 		{0xfe, 0xfe},

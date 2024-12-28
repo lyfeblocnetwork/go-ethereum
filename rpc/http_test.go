@@ -17,8 +17,6 @@
 package rpc
 
 import (
-	"context"
-	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -40,13 +38,11 @@ func confirmStatusCode(t *testing.T, got, want int) {
 
 func confirmRequestValidationCode(t *testing.T, method, contentType, body string, expectedStatusCode int) {
 	t.Helper()
-
-	s := NewServer()
 	request := httptest.NewRequest(method, "http://url.com", strings.NewReader(body))
 	if len(contentType) > 0 {
 		request.Header.Set("Content-Type", contentType)
 	}
-	code, err := s.validateRequest(request)
+	code, err := validateRequest(request)
 	if code == 0 {
 		if err != nil {
 			t.Errorf("validation: got error %v, expected nil", err)
@@ -58,34 +54,24 @@ func confirmRequestValidationCode(t *testing.T, method, contentType, body string
 }
 
 func TestHTTPErrorResponseWithDelete(t *testing.T) {
-	t.Parallel()
-
 	confirmRequestValidationCode(t, http.MethodDelete, contentType, "", http.StatusMethodNotAllowed)
 }
 
 func TestHTTPErrorResponseWithPut(t *testing.T) {
-	t.Parallel()
-
 	confirmRequestValidationCode(t, http.MethodPut, contentType, "", http.StatusMethodNotAllowed)
 }
 
 func TestHTTPErrorResponseWithMaxContentLength(t *testing.T) {
-	t.Parallel()
-
-	body := make([]rune, defaultBodyLimit+1)
+	body := make([]rune, maxRequestContentLength+1)
 	confirmRequestValidationCode(t,
 		http.MethodPost, contentType, string(body), http.StatusRequestEntityTooLarge)
 }
 
 func TestHTTPErrorResponseWithEmptyContentType(t *testing.T) {
-	t.Parallel()
-
 	confirmRequestValidationCode(t, http.MethodPost, "", "", http.StatusUnsupportedMediaType)
 }
 
 func TestHTTPErrorResponseWithValidRequest(t *testing.T) {
-	t.Parallel()
-
 	confirmRequestValidationCode(t, http.MethodPost, contentType, "", 0)
 }
 
@@ -106,21 +92,16 @@ func confirmHTTPRequestYieldsStatusCode(t *testing.T, method, contentType, body 
 	if err != nil {
 		t.Fatalf("request failed: %v", err)
 	}
-	resp.Body.Close()
 	confirmStatusCode(t, resp.StatusCode, expectedStatusCode)
 }
 
 func TestHTTPResponseWithEmptyGet(t *testing.T) {
-	t.Parallel()
-
 	confirmHTTPRequestYieldsStatusCode(t, http.MethodGet, "", "", http.StatusOK)
 }
 
 // This checks that maxRequestContentLength is not applied to the response of a request.
 func TestHTTPRespBodyUnlimited(t *testing.T) {
-	t.Parallel()
-
-	const respLength = defaultBodyLimit * 3
+	const respLength = maxRequestContentLength * 3
 
 	s := NewServer()
 	defer s.Stop()
@@ -146,8 +127,6 @@ func TestHTTPRespBodyUnlimited(t *testing.T) {
 // Tests that an HTTP error results in an HTTPError instance
 // being returned with the expected attributes.
 func TestHTTPErrorResponse(t *testing.T) {
-	t.Parallel()
-
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "error has occurred!", http.StatusTeapot)
 	}))
@@ -185,8 +164,6 @@ func TestHTTPErrorResponse(t *testing.T) {
 }
 
 func TestHTTPPeerInfo(t *testing.T) {
-	t.Parallel()
-
 	s := newTestServer()
 	defer s.Stop()
 	ts := httptest.NewServer(s)
@@ -219,47 +196,5 @@ func TestHTTPPeerInfo(t *testing.T) {
 	}
 	if info.HTTP.Origin != "origin.example.com" {
 		t.Errorf("wrong HTTP.Origin %q", info.HTTP.UserAgent)
-	}
-}
-
-func TestNewContextWithHeaders(t *testing.T) {
-	t.Parallel()
-
-	expectedHeaders := 0
-	server := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
-		for i := 0; i < expectedHeaders; i++ {
-			key, want := fmt.Sprintf("key-%d", i), fmt.Sprintf("val-%d", i)
-			if have := request.Header.Get(key); have != want {
-				t.Errorf("wrong request headers for %s, want: %s, have: %s", key, want, have)
-			}
-		}
-		writer.WriteHeader(http.StatusOK)
-		_, _ = writer.Write([]byte(`{}`))
-	}))
-	defer server.Close()
-
-	client, err := Dial(server.URL)
-	if err != nil {
-		t.Fatalf("failed to dial: %s", err)
-	}
-	defer client.Close()
-
-	newHdr := func(k, v string) http.Header {
-		header := http.Header{}
-		header.Set(k, v)
-		return header
-	}
-	ctx1 := NewContextWithHeaders(context.Background(), newHdr("key-0", "val-0"))
-	ctx2 := NewContextWithHeaders(ctx1, newHdr("key-1", "val-1"))
-	ctx3 := NewContextWithHeaders(ctx2, newHdr("key-2", "val-2"))
-
-	expectedHeaders = 3
-	if err := client.CallContext(ctx3, nil, "test"); err != ErrNoResult {
-		t.Error("call failed", err)
-	}
-
-	expectedHeaders = 2
-	if err := client.CallContext(ctx2, nil, "test"); err != ErrNoResult {
-		t.Error("call failed:", err)
 	}
 }

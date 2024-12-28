@@ -23,7 +23,6 @@ import (
 	"net"
 	"net/http"
 	"reflect"
-	"slices"
 	"strings"
 	"testing"
 
@@ -35,9 +34,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-var (
-	testNodeKey, _ = crypto.GenerateKey()
-)
+var testNodeKey, _ = crypto.GenerateKey()
 
 func testNodeConfig() *Config {
 	return &Config{
@@ -117,7 +114,7 @@ func TestLifecycleRegistry_Successful(t *testing.T) {
 	noop := NewNoop()
 	stack.RegisterLifecycle(noop)
 
-	if !slices.Contains(stack.lifecycles, Lifecycle(noop)) {
+	if !containsLifecycle(stack.lifecycles, noop) {
 		t.Fatalf("lifecycle was not properly registered on the node, %v", err)
 	}
 }
@@ -416,6 +413,21 @@ func TestRegisterHandler_Successful(t *testing.T) {
 	assert.Equal(t, "success", string(buf))
 }
 
+// Tests that the given handler will not be successfully mounted since no HTTP server
+// is enabled for RPC
+func TestRegisterHandler_Unsuccessful(t *testing.T) {
+	node, err := New(&DefaultConfig)
+	if err != nil {
+		t.Fatalf("could not create new node: %v", err)
+	}
+
+	// create and mount handler
+	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Write([]byte("success"))
+	})
+	node.RegisterHandler("test", "/test", handler)
+}
+
 // Tests whether websocket requests can be handled on the same port as a regular http server.
 func TestWebsocketHTTPOnSamePort_WebsocketRequest(t *testing.T) {
 	node := startHTTP(t, 0, 0)
@@ -513,6 +525,7 @@ func TestNodeRPCPrefix(t *testing.T) {
 	}
 
 	for _, test := range tests {
+		test := test
 		name := fmt.Sprintf("http=%s ws=%s", test.httpPrefix, test.wsPrefix)
 		t.Run(name, func(t *testing.T) {
 			cfg := &Config{
@@ -544,13 +557,13 @@ func (test rpcPrefixTest) check(t *testing.T, node *Node) {
 	}
 
 	for _, path := range test.wantHTTP {
-		resp := rpcRequest(t, httpBase+path, testMethod)
+		resp := rpcRequest(t, httpBase+path)
 		if resp.StatusCode != 200 {
 			t.Errorf("Error: %s: bad status code %d, want 200", path, resp.StatusCode)
 		}
 	}
 	for _, path := range test.wantNoHTTP {
-		resp := rpcRequest(t, httpBase+path, testMethod)
+		resp := rpcRequest(t, httpBase+path)
 		if resp.StatusCode != 404 {
 			t.Errorf("Error: %s: bad status code %d, want 404", path, resp.StatusCode)
 		}
@@ -571,11 +584,10 @@ func (test rpcPrefixTest) check(t *testing.T, node *Node) {
 
 func createNode(t *testing.T, httpPort, wsPort int) *Node {
 	conf := &Config{
-		HTTPHost:     "127.0.0.1",
-		HTTPPort:     httpPort,
-		WSHost:       "127.0.0.1",
-		WSPort:       wsPort,
-		HTTPTimeouts: rpc.DefaultHTTPTimeouts,
+		HTTPHost: "127.0.0.1",
+		HTTPPort: httpPort,
+		WSHost:   "127.0.0.1",
+		WSPort:   wsPort,
 	}
 	node, err := New(conf)
 	if err != nil {
@@ -600,7 +612,6 @@ func doHTTPRequest(t *testing.T, req *http.Request) *http.Response {
 	if err != nil {
 		t.Fatalf("could not issue a GET request to the given endpoint: %v", err)
 	}
-	t.Cleanup(func() { resp.Body.Close() })
 	return resp
 }
 

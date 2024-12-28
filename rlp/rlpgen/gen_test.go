@@ -47,10 +47,11 @@ func init() {
 	}
 }
 
-var tests = []string{"uints", "nil", "rawvalue", "optional", "bigint", "uint256"}
+var tests = []string{"uints", "nil", "rawvalue", "optional", "bigint"}
 
 func TestOutput(t *testing.T) {
 	for _, test := range tests {
+		test := test
 		t.Run(test, func(t *testing.T) {
 			inputFile := filepath.Join("testdata", test+".in.txt")
 			outputFile := filepath.Join("testdata", test+".out.txt")
@@ -65,7 +66,7 @@ func TestOutput(t *testing.T) {
 
 			// Set this environment variable to regenerate the test outputs.
 			if os.Getenv("WRITE_TEST_FILES") != "" {
-				os.WriteFile(outputFile, output, 0644)
+				os.WriteFile(outputFile, output, 0o644)
 			}
 
 			// Check if output matches.
@@ -74,7 +75,7 @@ func TestOutput(t *testing.T) {
 				t.Fatal("error loading expected test output:", err)
 			}
 			if !bytes.Equal(output, wantOutput) {
-				t.Fatalf("output mismatch, want: %v got %v", string(wantOutput), string(output))
+				t.Fatal("output mismatch:\n", string(output))
 			}
 		})
 	}

@@ -22,7 +22,6 @@ package core
 
 import (
 	"math/big"
-	"path/filepath"
 	"testing"
 	"time"
 
@@ -31,7 +30,6 @@ import (
 	"github.com/ethereum/go-ethereum/core/rawdb"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/core/vm"
-	"github.com/ethereum/go-ethereum/ethdb/pebble"
 	"github.com/ethereum/go-ethereum/params"
 )
 
@@ -206,6 +204,7 @@ func testShortOldForkedRepair(t *testing.T, snapshots bool) {
 func TestShortOldForkedSnapSyncedRepair(t *testing.T) {
 	testShortOldForkedSnapSyncedRepair(t, false)
 }
+
 func TestShortOldForkedSnapSyncedRepairWithSnapshots(t *testing.T) {
 	testShortOldForkedSnapSyncedRepair(t, true)
 }
@@ -253,6 +252,7 @@ func testShortOldForkedSnapSyncedRepair(t *testing.T, snapshots bool) {
 func TestShortOldForkedSnapSyncingRepair(t *testing.T) {
 	testShortOldForkedSnapSyncingRepair(t, false)
 }
+
 func TestShortOldForkedSnapSyncingRepairWithSnapshots(t *testing.T) {
 	testShortOldForkedSnapSyncingRepair(t, true)
 }
@@ -343,6 +343,7 @@ func testShortNewlyForkedRepair(t *testing.T, snapshots bool) {
 func TestShortNewlyForkedSnapSyncedRepair(t *testing.T) {
 	testShortNewlyForkedSnapSyncedRepair(t, false)
 }
+
 func TestShortNewlyForkedSnapSyncedRepairWithSnapshots(t *testing.T) {
 	testShortNewlyForkedSnapSyncedRepair(t, true)
 }
@@ -390,6 +391,7 @@ func testShortNewlyForkedSnapSyncedRepair(t *testing.T, snapshots bool) {
 func TestShortNewlyForkedSnapSyncingRepair(t *testing.T) {
 	testShortNewlyForkedSnapSyncingRepair(t, false)
 }
+
 func TestShortNewlyForkedSnapSyncingRepairWithSnapshots(t *testing.T) {
 	testShortNewlyForkedSnapSyncingRepair(t, true)
 }
@@ -478,6 +480,7 @@ func testShortReorgedRepair(t *testing.T, snapshots bool) {
 func TestShortReorgedSnapSyncedRepair(t *testing.T) {
 	testShortReorgedSnapSyncedRepair(t, false)
 }
+
 func TestShortReorgedSnapSyncedRepairWithSnapshots(t *testing.T) {
 	testShortReorgedSnapSyncedRepair(t, true)
 }
@@ -524,6 +527,7 @@ func testShortReorgedSnapSyncedRepair(t *testing.T, snapshots bool) {
 func TestShortReorgedSnapSyncingRepair(t *testing.T) {
 	testShortReorgedSnapSyncingRepair(t, false)
 }
+
 func TestShortReorgedSnapSyncingRepairWithSnapshots(t *testing.T) {
 	testShortReorgedSnapSyncingRepair(t, true)
 }
@@ -659,6 +663,7 @@ func testLongDeepRepair(t *testing.T, snapshots bool) {
 func TestLongSnapSyncedShallowRepair(t *testing.T) {
 	testLongSnapSyncedShallowRepair(t, false)
 }
+
 func TestLongSnapSyncedShallowRepairWithSnapshots(t *testing.T) {
 	testLongSnapSyncedShallowRepair(t, true)
 }
@@ -753,6 +758,7 @@ func testLongSnapSyncedDeepRepair(t *testing.T, snapshots bool) {
 func TestLongSnapSyncingShallowRepair(t *testing.T) {
 	testLongSnapSyncingShallowRepair(t, false)
 }
+
 func TestLongSnapSyncingShallowRepairWithSnapshots(t *testing.T) {
 	testLongSnapSyncingShallowRepair(t, true)
 }
@@ -850,6 +856,7 @@ func testLongSnapSyncingDeepRepair(t *testing.T, snapshots bool) {
 func TestLongOldForkedShallowRepair(t *testing.T) {
 	testLongOldForkedShallowRepair(t, false)
 }
+
 func TestLongOldForkedShallowRepairWithSnapshots(t *testing.T) {
 	testLongOldForkedShallowRepair(t, true)
 }
@@ -949,6 +956,7 @@ func testLongOldForkedDeepRepair(t *testing.T, snapshots bool) {
 func TestLongOldForkedSnapSyncedShallowRepair(t *testing.T) {
 	testLongOldForkedSnapSyncedShallowRepair(t, false)
 }
+
 func TestLongOldForkedSnapSyncedShallowRepairWithSnapshots(t *testing.T) {
 	testLongOldForkedSnapSyncedShallowRepair(t, true)
 }
@@ -1001,6 +1009,7 @@ func testLongOldForkedSnapSyncedShallowRepair(t *testing.T, snapshots bool) {
 func TestLongOldForkedSnapSyncedDeepRepair(t *testing.T) {
 	testLongOldForkedSnapSyncedDeepRepair(t, false)
 }
+
 func TestLongOldForkedSnapSyncedDeepRepairWithSnapshots(t *testing.T) {
 	testLongOldForkedSnapSyncedDeepRepair(t, true)
 }
@@ -1052,6 +1061,7 @@ func testLongOldForkedSnapSyncedDeepRepair(t *testing.T, snapshots bool) {
 func TestLongOldForkedSnapSyncingShallowRepair(t *testing.T) {
 	testLongOldForkedSnapSyncingShallowRepair(t, false)
 }
+
 func TestLongOldForkedSnapSyncingShallowRepairWithSnapshots(t *testing.T) {
 	testLongOldForkedSnapSyncingShallowRepair(t, true)
 }
@@ -1104,6 +1114,7 @@ func testLongOldForkedSnapSyncingShallowRepair(t *testing.T, snapshots bool) {
 func TestLongOldForkedSnapSyncingDeepRepair(t *testing.T) {
 	testLongOldForkedSnapSyncingDeepRepair(t, false)
 }
+
 func TestLongOldForkedSnapSyncingDeepRepairWithSnapshots(t *testing.T) {
 	testLongOldForkedSnapSyncingDeepRepair(t, true)
 }
@@ -1156,6 +1167,7 @@ func testLongOldForkedSnapSyncingDeepRepair(t *testing.T, snapshots bool) {
 func TestLongNewerForkedShallowRepair(t *testing.T) {
 	testLongNewerForkedShallowRepair(t, false)
 }
+
 func TestLongNewerForkedShallowRepairWithSnapshots(t *testing.T) {
 	testLongNewerForkedShallowRepair(t, true)
 }
@@ -1255,6 +1267,7 @@ func testLongNewerForkedDeepRepair(t *testing.T, snapshots bool) {
 func TestLongNewerForkedSnapSyncedShallowRepair(t *testing.T) {
 	testLongNewerForkedSnapSyncedShallowRepair(t, false)
 }
+
 func TestLongNewerForkedSnapSyncedShallowRepairWithSnapshots(t *testing.T) {
 	testLongNewerForkedSnapSyncedShallowRepair(t, true)
 }
@@ -1307,6 +1320,7 @@ func testLongNewerForkedSnapSyncedShallowRepair(t *testing.T, snapshots bool) {
 func TestLongNewerForkedSnapSyncedDeepRepair(t *testing.T) {
 	testLongNewerForkedSnapSyncedDeepRepair(t, false)
 }
+
 func TestLongNewerForkedSnapSyncedDeepRepairWithSnapshots(t *testing.T) {
 	testLongNewerForkedSnapSyncedDeepRepair(t, true)
 }
@@ -1358,6 +1372,7 @@ func testLongNewerForkedSnapSyncedDeepRepair(t *testing.T, snapshots bool) {
 func TestLongNewerForkedSnapSyncingShallowRepair(t *testing.T) {
 	testLongNewerForkedSnapSyncingShallowRepair(t, false)
 }
+
 func TestLongNewerForkedSnapSyncingShallowRepairWithSnapshots(t *testing.T) {
 	testLongNewerForkedSnapSyncingShallowRepair(t, true)
 }
@@ -1410,6 +1425,7 @@ func testLongNewerForkedSnapSyncingShallowRepair(t *testing.T, snapshots bool) {
 func TestLongNewerForkedSnapSyncingDeepRepair(t *testing.T) {
 	testLongNewerForkedSnapSyncingDeepRepair(t, false)
 }
+
 func TestLongNewerForkedSnapSyncingDeepRepairWithSnapshots(t *testing.T) {
 	testLongNewerForkedSnapSyncingDeepRepair(t, true)
 }
@@ -1555,6 +1571,7 @@ func testLongReorgedDeepRepair(t *testing.T, snapshots bool) {
 func TestLongReorgedSnapSyncedShallowRepair(t *testing.T) {
 	testLongReorgedSnapSyncedShallowRepair(t, false)
 }
+
 func TestLongReorgedSnapSyncedShallowRepairWithSnapshots(t *testing.T) {
 	testLongReorgedSnapSyncedShallowRepair(t, true)
 }
@@ -1606,6 +1623,7 @@ func testLongReorgedSnapSyncedShallowRepair(t *testing.T, snapshots bool) {
 func TestLongReorgedSnapSyncedDeepRepair(t *testing.T) {
 	testLongReorgedSnapSyncedDeepRepair(t, false)
 }
+
 func TestLongReorgedSnapSyncedDeepRepairWithSnapshots(t *testing.T) {
 	testLongReorgedSnapSyncedDeepRepair(t, true)
 }
@@ -1656,6 +1674,7 @@ func testLongReorgedSnapSyncedDeepRepair(t *testing.T, snapshots bool) {
 func TestLongReorgedSnapSyncingShallowRepair(t *testing.T) {
 	testLongReorgedSnapSyncingShallowRepair(t, false)
 }
+
 func TestLongReorgedSnapSyncingShallowRepairWithSnapshots(t *testing.T) {
 	testLongReorgedSnapSyncingShallowRepair(t, true)
 }
@@ -1707,6 +1726,7 @@ func testLongReorgedSnapSyncingShallowRepair(t *testing.T, snapshots bool) {
 func TestLongReorgedSnapSyncingDeepRepair(t *testing.T) {
 	testLongReorgedSnapSyncingDeepRepair(t, false)
 }
+
 func TestLongReorgedSnapSyncingDeepRepairWithSnapshots(t *testing.T) {
 	testLongReorgedSnapSyncingDeepRepair(t, true)
 }
@@ -1751,43 +1771,28 @@ func testLongReorgedSnapSyncingDeepRepair(t *testing.T, snapshots bool) {
 }
 
 func testRepair(t *testing.T, tt *rewindTest, snapshots bool) {
-	for _, scheme := range []string{rawdb.HashScheme, rawdb.PathScheme} {
-		testRepairWithScheme(t, tt, snapshots, scheme)
-	}
-}
-
-func testRepairWithScheme(t *testing.T, tt *rewindTest, snapshots bool, scheme string) {
 	// It's hard to follow the test case, visualize the input
-	// log.SetDefault(log.NewLogger(log.NewTerminalHandlerWithLevel(os.Stderr, log.LevelInfo, true)))
-	// fmt.Println(tt.dump(false))
+	// log.Root().SetHandler(log.LvlFilterHandler(log.LvlTrace, log.StreamHandler(os.Stderr, log.TerminalFormat(true))))
+	// fmt.Println(tt.dump(true))
 
 	// Create a temporary persistent database
 	datadir := t.TempDir()
-	ancient := filepath.Join(datadir, "ancient")
 
-	pdb, err := pebble.New(datadir, 0, 0, "", false)
+	db, err := rawdb.NewLevelDBDatabaseWithFreezer(datadir, 0, 0, datadir, "", false)
 	if err != nil {
-		t.Fatalf("Failed to create persistent key-value database: %v", err)
-	}
-	db, err := rawdb.NewDatabaseWithFreezer(pdb, ancient, "", false)
-	if err != nil {
-		t.Fatalf("Failed to create persistent freezer database: %v", err)
+		t.Fatalf("Failed to create persistent database: %v", err)
 	}
 	defer db.Close() // Might double close, should be fine
 
 	// Initialize a fresh chain
 	var (
-		gspec = &Genesis{
-			BaseFee: big.NewInt(params.InitialBaseFee),
-			Config:  params.AllEthashProtocolChanges,
-		}
-		engine = ethash.NewFullFaker()
-		config = &CacheConfig{
+		genesis = (&Genesis{BaseFee: big.NewInt(params.InitialBaseFee)}).MustCommit(db)
+		engine  = ethash.NewFullFaker()
+		config  = &CacheConfig{
 			TrieCleanLimit: 256,
 			TrieDirtyLimit: 256,
 			TrieTimeLimit:  5 * time.Minute,
 			SnapshotLimit:  0, // Disable snapshot by default
-			StateScheme:    scheme,
 		}
 	)
 	defer engine.Close()
@@ -1795,21 +1800,21 @@ func testRepairWithScheme(t *testing.T, tt *rewindTest, snapshots bool, scheme s
 		config.SnapshotLimit = 256
 		config.SnapshotWait = true
 	}
-	chain, err := NewBlockChain(db, config, gspec, nil, engine, vm.Config{}, nil)
+	chain, err := NewBlockChain(db, config, params.AllEthashProtocolChanges, engine, vm.Config{}, nil, nil)
 	if err != nil {
 		t.Fatalf("Failed to create chain: %v", err)
 	}
 	// If sidechain blocks are needed, make a light chain and import it
 	var sideblocks types.Blocks
 	if tt.sidechainBlocks > 0 {
-		sideblocks, _ = GenerateChain(gspec.Config, gspec.ToBlock(), engine, rawdb.NewMemoryDatabase(), tt.sidechainBlocks, func(i int, b *BlockGen) {
+		sideblocks, _ = GenerateChain(params.TestChainConfig, genesis, engine, rawdb.NewMemoryDatabase(), tt.sidechainBlocks, func(i int, b *BlockGen) {
 			b.SetCoinbase(common.Address{0x01})
 		})
 		if _, err := chain.InsertChain(sideblocks); err != nil {
 			t.Fatalf("Failed to import side chain: %v", err)
 		}
 	}
-	canonblocks, _ := GenerateChain(gspec.Config, gspec.ToBlock(), engine, rawdb.NewMemoryDatabase(), tt.canonicalBlocks, func(i int, b *BlockGen) {
+	canonblocks, _ := GenerateChain(params.TestChainConfig, genesis, engine, rawdb.NewMemoryDatabase(), tt.canonicalBlocks, func(i int, b *BlockGen) {
 		b.SetCoinbase(common.Address{0x02})
 		b.SetDifficulty(big.NewInt(1000000))
 	})
@@ -1817,9 +1822,7 @@ func testRepairWithScheme(t *testing.T, tt *rewindTest, snapshots bool, scheme s
 		t.Fatalf("Failed to import canonical chain start: %v", err)
 	}
 	if tt.commitBlock > 0 {
-		if err := chain.triedb.Commit(canonblocks[tt.commitBlock-1].Root(), false); err != nil {
-			t.Fatalf("Failed to flush trie state: %v", err)
-		}
+		chain.stateCache.TrieDB().Commit(canonblocks[tt.commitBlock-1].Root(), true, nil)
 		if snapshots {
 			if err := chain.snaps.Cap(canonblocks[tt.commitBlock-1].Root(), 0); err != nil {
 				t.Fatalf("Failed to flatten snapshots: %v", err)
@@ -1831,36 +1834,26 @@ func testRepairWithScheme(t *testing.T, tt *rewindTest, snapshots bool, scheme s
 	}
 	// Force run a freeze cycle
 	type freezer interface {
-		Freeze() error
+		Freeze(threshold uint64) error
 		Ancients() (uint64, error)
 	}
-	if tt.freezeThreshold < uint64(tt.canonicalBlocks) {
-		final := uint64(tt.canonicalBlocks) - tt.freezeThreshold
-		chain.SetFinalized(canonblocks[int(final)-1].Header())
-	}
-	db.(freezer).Freeze()
+	db.(freezer).Freeze(tt.freezeThreshold)
 
 	// Set the simulated pivot block
 	if tt.pivotBlock != nil {
 		rawdb.WriteLastPivotNumber(db, *tt.pivotBlock)
 	}
 	// Pull the plug on the database, simulating a hard crash
-	chain.triedb.Close()
 	db.Close()
-	chain.stopWithoutSaving()
 
 	// Start a new blockchain back up and see where the repair leads us
-	pdb, err = pebble.New(datadir, 0, 0, "", false)
+	db, err = rawdb.NewLevelDBDatabaseWithFreezer(datadir, 0, 0, datadir, "", false)
 	if err != nil {
-		t.Fatalf("Failed to reopen persistent key-value database: %v", err)
-	}
-	db, err = rawdb.NewDatabaseWithFreezer(pdb, ancient, "", false)
-	if err != nil {
-		t.Fatalf("Failed to reopen persistent freezer database: %v", err)
+		t.Fatalf("Failed to reopen persistent database: %v", err)
 	}
 	defer db.Close()
 
-	newChain, err := NewBlockChain(db, config, gspec, nil, engine, vm.Config{}, nil)
+	newChain, err := NewBlockChain(db, nil, params.AllEthashProtocolChanges, engine, vm.Config{}, nil, nil)
 	if err != nil {
 		t.Fatalf("Failed to recreate chain: %v", err)
 	}
@@ -1875,11 +1868,11 @@ func testRepairWithScheme(t *testing.T, tt *rewindTest, snapshots bool, scheme s
 	if head := newChain.CurrentHeader(); head.Number.Uint64() != tt.expHeadHeader {
 		t.Errorf("Head header mismatch: have %d, want %d", head.Number, tt.expHeadHeader)
 	}
-	if head := newChain.CurrentSnapBlock(); head.Number.Uint64() != tt.expHeadFastBlock {
-		t.Errorf("Head fast block mismatch: have %d, want %d", head.Number, tt.expHeadFastBlock)
+	if head := newChain.CurrentFastBlock(); head.NumberU64() != tt.expHeadFastBlock {
+		t.Errorf("Head fast block mismatch: have %d, want %d", head.NumberU64(), tt.expHeadFastBlock)
 	}
-	if head := newChain.CurrentBlock(); head.Number.Uint64() != tt.expHeadBlock {
-		t.Errorf("Head block mismatch: have %d, want %d", head.Number, tt.expHeadBlock)
+	if head := newChain.CurrentBlock(); head.NumberU64() != tt.expHeadBlock {
+		t.Errorf("Head block mismatch: have %d, want %d", head.NumberU64(), tt.expHeadBlock)
 	}
 	if frozen, err := db.(freezer).Ancients(); err != nil {
 		t.Errorf("Failed to retrieve ancient count: %v\n", err)
@@ -1903,41 +1896,35 @@ func testRepairWithScheme(t *testing.T, tt *rewindTest, snapshots bool, scheme s
 // In this case the snapshot layer of B3 is not created because of existent
 // state.
 func TestIssue23496(t *testing.T) {
-	testIssue23496(t, rawdb.HashScheme)
-	testIssue23496(t, rawdb.PathScheme)
-}
-
-func testIssue23496(t *testing.T, scheme string) {
 	// It's hard to follow the test case, visualize the input
-	// log.SetDefault(log.NewLogger(log.NewTerminalHandlerWithLevel(os.Stderr, log.LevelInfo, true)))
+	// log.Root().SetHandler(log.LvlFilterHandler(log.LvlTrace, log.StreamHandler(os.Stderr, log.TerminalFormat(true))))
 
 	// Create a temporary persistent database
 	datadir := t.TempDir()
-	ancient := filepath.Join(datadir, "ancient")
 
-	pdb, err := pebble.New(datadir, 0, 0, "", false)
+	db, err := rawdb.NewLevelDBDatabaseWithFreezer(datadir, 0, 0, datadir, "", false)
 	if err != nil {
-		t.Fatalf("Failed to create persistent key-value database: %v", err)
-	}
-	db, err := rawdb.NewDatabaseWithFreezer(pdb, ancient, "", false)
-	if err != nil {
-		t.Fatalf("Failed to create persistent freezer database: %v", err)
+		t.Fatalf("Failed to create persistent database: %v", err)
 	}
 	defer db.Close() // Might double close, should be fine
 
 	// Initialize a fresh chain
 	var (
-		gspec = &Genesis{
-			Config:  params.TestChainConfig,
-			BaseFee: big.NewInt(params.InitialBaseFee),
+		genesis = (&Genesis{BaseFee: big.NewInt(params.InitialBaseFee)}).MustCommit(db)
+		engine  = ethash.NewFullFaker()
+		config  = &CacheConfig{
+			TrieCleanLimit: 256,
+			TrieDirtyLimit: 256,
+			TrieTimeLimit:  5 * time.Minute,
+			SnapshotLimit:  256,
+			SnapshotWait:   true,
 		}
-		engine = ethash.NewFullFaker()
 	)
-	chain, err := NewBlockChain(db, DefaultCacheConfigWithScheme(scheme), gspec, nil, engine, vm.Config{}, nil)
+	chain, err := NewBlockChain(db, config, params.AllEthashProtocolChanges, engine, vm.Config{}, nil, nil)
 	if err != nil {
 		t.Fatalf("Failed to create chain: %v", err)
 	}
-	_, blocks, _ := GenerateChainWithGenesis(gspec, engine, 4, func(i int, b *BlockGen) {
+	blocks, _ := GenerateChain(params.TestChainConfig, genesis, engine, rawdb.NewMemoryDatabase(), 4, func(i int, b *BlockGen) {
 		b.SetCoinbase(common.Address{0x02})
 		b.SetDifficulty(big.NewInt(1000000))
 	})
@@ -1946,7 +1933,7 @@ func testIssue23496(t *testing.T, scheme string) {
 	if _, err := chain.InsertChain(blocks[:1]); err != nil {
 		t.Fatalf("Failed to import canonical chain start: %v", err)
 	}
-	chain.triedb.Commit(blocks[0].Root(), false)
+	chain.stateCache.TrieDB().Commit(blocks[0].Root(), true, nil)
 
 	// Insert block B2 and commit the snapshot into disk
 	if _, err := chain.InsertChain(blocks[1:2]); err != nil {
@@ -1960,7 +1947,7 @@ func testIssue23496(t *testing.T, scheme string) {
 	if _, err := chain.InsertChain(blocks[2:3]); err != nil {
 		t.Fatalf("Failed to import canonical chain start: %v", err)
 	}
-	chain.triedb.Commit(blocks[2].Root(), false)
+	chain.stateCache.TrieDB().Commit(blocks[2].Root(), true, nil)
 
 	// Insert the remaining blocks
 	if _, err := chain.InsertChain(blocks[3:]); err != nil {
@@ -1968,22 +1955,16 @@ func testIssue23496(t *testing.T, scheme string) {
 	}
 
 	// Pull the plug on the database, simulating a hard crash
-	chain.triedb.Close()
 	db.Close()
-	chain.stopWithoutSaving()
 
 	// Start a new blockchain back up and see where the repair leads us
-	pdb, err = pebble.New(datadir, 0, 0, "", false)
+	db, err = rawdb.NewLevelDBDatabaseWithFreezer(datadir, 0, 0, datadir, "", false)
 	if err != nil {
-		t.Fatalf("Failed to reopen persistent key-value database: %v", err)
-	}
-	db, err = rawdb.NewDatabaseWithFreezer(pdb, ancient, "", false)
-	if err != nil {
-		t.Fatalf("Failed to reopen persistent freezer database: %v", err)
+		t.Fatalf("Failed to reopen persistent database: %v", err)
 	}
 	defer db.Close()
 
-	chain, err = NewBlockChain(db, DefaultCacheConfigWithScheme(scheme), gspec, nil, engine, vm.Config{}, nil)
+	chain, err = NewBlockChain(db, nil, params.AllEthashProtocolChanges, engine, vm.Config{}, nil, nil)
 	if err != nil {
 		t.Fatalf("Failed to recreate chain: %v", err)
 	}
@@ -1992,15 +1973,11 @@ func testIssue23496(t *testing.T, scheme string) {
 	if head := chain.CurrentHeader(); head.Number.Uint64() != uint64(4) {
 		t.Errorf("Head header mismatch: have %d, want %d", head.Number, 4)
 	}
-	if head := chain.CurrentSnapBlock(); head.Number.Uint64() != uint64(4) {
-		t.Errorf("Head fast block mismatch: have %d, want %d", head.Number, uint64(4))
+	if head := chain.CurrentFastBlock(); head.NumberU64() != uint64(4) {
+		t.Errorf("Head fast block mismatch: have %d, want %d", head.NumberU64(), uint64(4))
 	}
-	expHead := uint64(1)
-	if scheme == rawdb.PathScheme {
-		expHead = uint64(2)
-	}
-	if head := chain.CurrentBlock(); head.Number.Uint64() != expHead {
-		t.Errorf("Head block mismatch: have %d, want %d", head.Number, expHead)
+	if head := chain.CurrentBlock(); head.NumberU64() != uint64(1) {
+		t.Errorf("Head block mismatch: have %d, want %d", head.NumberU64(), uint64(1))
 	}
 
 	// Reinsert B2-B4
@@ -2010,11 +1987,11 @@ func testIssue23496(t *testing.T, scheme string) {
 	if head := chain.CurrentHeader(); head.Number.Uint64() != uint64(4) {
 		t.Errorf("Head header mismatch: have %d, want %d", head.Number, 4)
 	}
-	if head := chain.CurrentSnapBlock(); head.Number.Uint64() != uint64(4) {
-		t.Errorf("Head fast block mismatch: have %d, want %d", head.Number, uint64(4))
+	if head := chain.CurrentFastBlock(); head.NumberU64() != uint64(4) {
+		t.Errorf("Head fast block mismatch: have %d, want %d", head.NumberU64(), uint64(4))
 	}
-	if head := chain.CurrentBlock(); head.Number.Uint64() != uint64(4) {
-		t.Errorf("Head block mismatch: have %d, want %d", head.Number, uint64(4))
+	if head := chain.CurrentBlock(); head.NumberU64() != uint64(4) {
+		t.Errorf("Head block mismatch: have %d, want %d", head.NumberU64(), uint64(4))
 	}
 	if layer := chain.Snapshots().Snapshot(blocks[2].Root()); layer == nil {
 		t.Error("Failed to regenerate the snapshot of known state")

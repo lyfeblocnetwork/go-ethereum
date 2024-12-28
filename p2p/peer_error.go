@@ -70,8 +70,6 @@ const (
 	DiscSelf
 	DiscReadTimeout
 	DiscSubprotocolError = DiscReason(0x10)
-
-	DiscInvalid = 0xff
 )
 
 var discReasonToString = [...]string{
@@ -88,11 +86,10 @@ var discReasonToString = [...]string{
 	DiscSelf:                "connected to self",
 	DiscReadTimeout:         "read timeout",
 	DiscSubprotocolError:    "subprotocol error",
-	DiscInvalid:             "invalid disconnect reason",
 }
 
 func (d DiscReason) String() string {
-	if len(discReasonToString) <= int(d) || discReasonToString[d] == "" {
+	if len(discReasonToString) <= int(d) {
 		return fmt.Sprintf("unknown disconnect reason %d", d)
 	}
 	return discReasonToString[d]
